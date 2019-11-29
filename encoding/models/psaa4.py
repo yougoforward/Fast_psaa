@@ -41,7 +41,7 @@ class psaa4NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psaa4 = psaa4_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(256+inter_channels, out_channels, 1))
         if self.se_loss:
             self.selayer = nn.Linear(inter_channels, out_channels)
 
@@ -113,12 +113,28 @@ class psaa4_Module(nn.Module):
                       nn.ReLU(True))
 
 
+        # self.gap4 = nn.Sequential(nn.AdaptiveAvgPool2d(1),
+        #                     nn.Conv2d(512, 256, 1, bias=False),
+        #                     norm_layer(256),
+        #                     nn.ReLU(True))
+        self.se4 = nn.Sequential(
+                            nn.Conv2d(512, 256, 1, bias=True),
+                            nn.Sigmoid())
+
+        # self.gap8 = nn.Sequential(nn.AdaptiveAvgPool2d(1),
+        #                     nn.Conv2d(512, 512, 1, bias=False),
+        #                     norm_layer(512),
+        #                     nn.ReLU(True))
+        self.se8 = nn.Sequential(
+                            nn.Conv2d(512, 512, 1, bias=True),
+                            nn.Sigmoid())
+
         self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
-                            nn.Conv2d(in_channels, 256, 1, bias=False),
-                            norm_layer(256),
+                            nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                            norm_layer(out_channels),
                             nn.ReLU(True))
-        self.se = nn.Sequential(
-                            nn.Conv2d(256, 256, 1, bias=True),
+        self.se16 = nn.Sequential(
+                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
 
         self.skip8 = nn.Sequential(nn.Conv2d(in_channels=512, out_channels=32,
@@ -129,9 +145,13 @@ class psaa4_Module(nn.Module):
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(16),
                       nn.ReLU(True))
-        self.project8to4 = nn.Sequential(nn.Conv2d(in_channels=512, out_channels=256,
+        self.project8to4 = nn.Sequential(nn.Conv2d(in_channels=1024, out_channels=256,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(256),
+                      nn.ReLU(True))
+        self.project16to8 = nn.Sequential(nn.Conv2d(in_channels=1024, out_channels=512,
+                      kernel_size=1, stride=1, padding=0, bias=False),
+                      norm_layer(512),
                       nn.ReLU(True))
 
         self.up16to8 = nn.Sequential(
@@ -200,27 +220,33 @@ class psaa4_Module(nn.Module):
                         psaa_att_list[3] * feat3), 1)
         out = self.project(y2)
 
+        #gp
+        gp = self.gap(x)
+        se16 = self.se16(gp)
+        out = torch.cat([out+se16*out, gp.expand(n, c, h, w)], dim=1)
         #upsampling
         _, _, h8, w8 = c2.size()
         _, cc, h4, w4 = c1.size()
 
         #16 to 8
         x8 = self.skip8(c2)
+        out = self.project16to8(out)
         out = F.interpolate(out, (h8, w8), **self._up_kwargs)
         x8 = torch.cat([x8, out], dim=1)
         out = self.up16to8(x8)
+        se8 = self.se8(gp)
+        out = torch.cat([out+se8*out, gp.expand(n, c, h8, w8)], dim=1)
 
         #8 to 4
         x4 = self.skip4(c1)
-        out = F.interpolate(out, (h4, w4), **self._up_kwargs)
         out = self.project8to4(out)
+        out = F.interpolate(out, (h4, w4), **self._up_kwargs)
         x4 = torch.cat([x4, out], dim=1)
         out = self.up8to4(x4)
         
         #gp
-        gp = self.gap(x)
-        se = self.se(gp)
-        out = torch.cat([out+se*out, gp.expand(n, cc, h4, w4)], dim=1)
+        se4 = self.se4(gp)
+        out = torch.cat([out+se4*out, gp.expand(n, c, h4, w4)], dim=1)
         return out, gp
 
 def get_psaa4net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
