@@ -102,11 +102,36 @@ class psaa4_Module(nn.Module):
         # self.b4 = psaa4Conv(in_channels, out_channels, rate4, norm_layer)
         # self.b4 = psaa4Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
+
+        self.b10 = nn.Sequential(
+            nn.Conv2d(out_channels, 256, 1, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True))
+        self.b11 = nn.Sequential(
+            nn.Conv2d(out_channels, 256, 3, padpadding=12, dilation=12, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True))
+        self.b12 = nn.Sequential(
+            nn.Conv2d(out_channels, 256, 3, padpadding=24, dilation=24, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True))
+        self.b13 = nn.Sequential(
+            nn.Conv2d(out_channels, 256, 3, padpadding=36, dilation=36, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True))
+        self.psaa_conv1 = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True),)
+        self.project1 = nn.Sequential(nn.Conv2d(in_channels=4*256, out_channels=256,
+                      kernel_size=1, stride=1, padding=0, bias=False),
+                      norm_layer(25),6
+                      nn.ReLU(True))
+
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
-                                    norm_layer(out_channels),
-                                    nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 4, 1, bias=True))        
+        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
+        #                             norm_layer(out_channels),
+        #                             nn.ReLU(True),
+        #                             nn.Conv2d(out_channels, 4, 1, bias=True))
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True),)
+
         self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
@@ -234,6 +259,15 @@ class psaa4_Module(nn.Module):
         out = F.interpolate(out, (h8, w8), **self._up_kwargs)
         x8 = torch.cat([x8, out], dim=1)
         out = self.up16to8(x8)
+        # psaa1
+        y11 = torch.cat((feat10, feat11, feat12, feat13), 1)
+        psaa_feat1 = self.psaa_conv1(torch.cat([out, y11], dim=1))
+        psaa_att1 = torch.sigmoid(psaa_feat1)
+        psaa_att_list1 = torch.split(psaa_att1, 1, dim=1)
+
+        y12 = torch.cat((psaa_att_list1[0] * feat10, psaa_att_list1[1] * feat11, psaa_att_list1[2] * feat12,
+                        psaa_att_list1[3] * feat13), 1)
+        out = self.project1(y12)
         se8 = self.se8(gp)
         out = torch.cat([out+se8*out, gp.expand(n, c, h8, w8)], dim=1)
 
