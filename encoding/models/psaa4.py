@@ -151,7 +151,7 @@ class psaa4_Module(nn.Module):
         #                     norm_layer(512),
         #                     nn.ReLU(True))
         self.se8 = nn.Sequential(
-                            nn.Conv2d(512, 512, 1, bias=True),
+                            nn.Conv2d(512, 256, 1, bias=True),
                             nn.Sigmoid())
 
         self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
@@ -170,7 +170,7 @@ class psaa4_Module(nn.Module):
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(16),
                       nn.ReLU(True))
-        self.project8to4 = nn.Sequential(nn.Conv2d(in_channels=1024, out_channels=256,
+        self.project8to4 = nn.Sequential(nn.Conv2d(in_channels=512, out_channels=256,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(256),
                       nn.ReLU(True))
