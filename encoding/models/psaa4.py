@@ -119,7 +119,7 @@ class psaa4_Module(nn.Module):
             nn.Conv2d(out_channels, 256, 3, padding=36, dilation=36, bias=False),
             norm_layer(256),
             nn.ReLU(True))
-        self.psaa_conv1 = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True),)
+        self.psaa_conv1 = nn.Sequential(nn.Conv2d(512+4*256, 4, 1, padding=0, bias=True),)
         self.project1 = nn.Sequential(nn.Conv2d(in_channels=4*256, out_channels=256,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(256),
