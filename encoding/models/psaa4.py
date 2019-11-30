@@ -104,19 +104,19 @@ class psaa4_Module(nn.Module):
 
 
         self.b10 = nn.Sequential(
-            nn.Conv2d(out_channels, 256, 1, bias=False),
+            nn.Conv2d(out_channels, 256, 1, padding=0, dilation=1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
         self.b11 = nn.Sequential(
-            nn.Conv2d(out_channels, 256, 3, padpadding=12, dilation=12, bias=False),
+            nn.Conv2d(out_channels, 256, 3, padding=12, dilation=12, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
         self.b12 = nn.Sequential(
-            nn.Conv2d(out_channels, 256, 3, padpadding=24, dilation=24, bias=False),
+            nn.Conv2d(out_channels, 256, 3, padding=24, dilation=24, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
         self.b13 = nn.Sequential(
-            nn.Conv2d(out_channels, 256, 3, padpadding=36, dilation=36, bias=False),
+            nn.Conv2d(out_channels, 256, 3, padding=36, dilation=36, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
         self.psaa_conv1 = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True),)
