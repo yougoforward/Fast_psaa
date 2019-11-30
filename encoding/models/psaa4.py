@@ -260,6 +260,10 @@ class psaa4_Module(nn.Module):
         x8 = torch.cat([x8, out], dim=1)
         out = self.up16to8(x8)
         # psaa1
+        feat10 = self.b10(out)
+        feat11 = self.b11(out)
+        feat12 = self.b12(out)
+        feat13 = self.b13(out)
         y11 = torch.cat((feat10, feat11, feat12, feat13), 1)
         psaa_feat1 = self.psaa_conv1(torch.cat([out, y11], dim=1))
         psaa_att1 = torch.sigmoid(psaa_feat1)
